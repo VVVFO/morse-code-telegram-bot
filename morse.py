@@ -1,5 +1,5 @@
-import math
-import pyaudio
+from pydub.generators import Sine
+from pydub.playback import play
 from config import FRAME_RATE, FREQUENCY, UNIT_LENGTH_SECONDS
 
 CODE_TO_INTERVAL_TABLE = {
@@ -42,41 +42,20 @@ def sentence_to_intervals(sentence):
     return [CODE_TO_INTERVAL_TABLE[character] for character in encode_sentence(sentence)]
 
 
-def interval_to_wave_data_segment(interval, frame_rate, frequency, unit_length_seconds):
-    is_on, unit = interval
-    num_frames = frame_rate * unit * unit_length_seconds
-    result = ''
-    for x in range(int(num_frames)):
-        if is_on:
-            result += chr(int(math.sin(x / ((frame_rate / frequency) / math.pi)) * 127 + 128))
-        else:
-            result += chr(int(128))
-    return result
+def interval_to_wave_data_segment(interval, frequency, unit_length_seconds):
+    is_on, length = interval
+    if is_on:
+        return Sine(frequency).to_audio_segment(length * unit_length_seconds * 1000)
+    else:
+        return Sine(0).to_audio_segment(length * unit_length_seconds * 1000)
 
 
-def intervals_to_sound(intervals, frame_rate, frequency, unit_length_seconds):
-    wave_data = ''
-    total_length = 0
+def intervals_to_sound(intervals, frequency, unit_length_seconds):
+    segment = Sine(0).to_audio_segment(0)
     for interval in intervals:
-        wave_data += interval_to_wave_data_segment(
-            interval,
-            frame_rate,
-            frequency,
-            unit_length_seconds
-        )
-        total_length += interval[1]
+        segment = segment.append(interval_to_wave_data_segment(interval, frequency, unit_length_seconds), crossfade=0)
     # handling the ending part
-    print(total_length)
-    for x in range(int(total_length * frame_rate) % frame_rate):
-        wave_data += chr(int(128))
-    p = pyaudio.PyAudio()
-    stream = p.open(format=p.get_format_from_width(1),
-                    channels=1,
-                    rate=frame_rate,
-                    output=True)
-    stream.write(wave_data)
-    stream.stop_stream()
-    stream.close()
+    play(segment)
 
 
 if __name__ == "__main__":
@@ -87,4 +66,4 @@ if __name__ == "__main__":
     #     _, length = CODE_TO_INTERVAL_TABLE[char]
     #     sum += length
     # print(sum)
-    intervals_to_sound(sentence_to_intervals("PARIS PARIS"), FRAME_RATE, FREQUENCY, UNIT_LENGTH_SECONDS)
+    intervals_to_sound(sentence_to_intervals("paris paris"), FREQUENCY, UNIT_LENGTH_SECONDS)

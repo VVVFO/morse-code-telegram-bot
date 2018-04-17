@@ -1,0 +1,4 @@
+FRAME_RATE = 44100
+FREQUENCY = 700
+WPM = 15
+UNIT_LENGTH_SECONDS = 60 / (WPM * 50)  # calculated with "PARIS"

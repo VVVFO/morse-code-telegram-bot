@@ -1,0 +1,13 @@
+# Note:
+# only allow certain file types
+# .txt is NOT included!
+
+*
+!.gitattributes
+!.gitignore
+!.gitkeep
+
+!*.py
+
+!*/
+

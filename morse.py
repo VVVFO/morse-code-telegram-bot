@@ -1,6 +1,6 @@
 from pydub.generators import Sine
 from pydub.playback import play
-from config import FRAME_RATE, FREQUENCY, UNIT_LENGTH_SECONDS
+import config
 
 CODE_TO_INTERVAL_TABLE = {
     '.': (True, 1),
@@ -31,11 +31,11 @@ def encode_word(word):
     for character in word:
         # to add an one-unit-pause between each . and -
         char_codes.append(" ".join(list(CHAR_TO_CODE_TABLE.get(character.upper(), ""))))
-    return "   ".join(char_codes)
+    return "   ".join(char_codes)  # three units between words
 
 
 def encode_sentence(sentence):
-    return "       ".join(encode_word(word) for word in sentence.split(' '))
+    return "       ".join(encode_word(word) for word in sentence.split(' '))  # seven units between sentences
 
 
 def sentence_to_intervals(sentence):
@@ -51,9 +51,9 @@ def interval_to_wave_data_segment(interval, frequency, unit_length_seconds):
 
 
 def intervals_to_sound(intervals, frequency, unit_length_seconds):
-    segment = Sine(0).to_audio_segment(0)
+    segment = Sine(0).to_audio_segment(config.CROSS_FADE_MS)  # silence at the beginning for cross-fade
     for interval in intervals:
-        segment = segment.append(interval_to_wave_data_segment(interval, frequency, unit_length_seconds), crossfade=0)
+        segment = segment.append(interval_to_wave_data_segment(interval, frequency, unit_length_seconds), crossfade=config.CROSS_FADE_MS)
     # handling the ending part
     play(segment)
 
@@ -66,4 +66,6 @@ if __name__ == "__main__":
     #     _, length = CODE_TO_INTERVAL_TABLE[char]
     #     sum += length
     # print(sum)
-    intervals_to_sound(sentence_to_intervals("paris paris"), FREQUENCY, UNIT_LENGTH_SECONDS)
+    intervals_to_sound(sentence_to_intervals("hello world"),
+                       config.FREQUENCY,
+                       config.UNIT_LENGTH_SECONDS)

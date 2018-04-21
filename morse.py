@@ -1,6 +1,9 @@
 from pydub.generators import Sine
-from pydub.playback import play
+from pydub import AudioSegment
 import morse_config
+
+# the default (libav) doesn't work somehow, dirty hack time :(
+AudioSegment.converter = "ffmpeg"
 
 # (State, Length in units)
 CODE_TO_INTERVAL_TABLE = {
@@ -9,7 +12,12 @@ CODE_TO_INTERVAL_TABLE = {
     ' ': (False, 1)
 }
 
-CHAR_TO_CODE_TABLE = {'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....', 'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.', 'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-', 'Y': '-.--', 'Z': '--..', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....', '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----', ', ': '--..--', '.': '.-.-.-', '?': '..--..', '/': '-..-.', '-': '-....-', '(': '-.--.', ')': '-.--.-'}
+CHAR_TO_CODE_TABLE = {'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.', 'F': '..-.', 'G': '--.', 'H': '....',
+                      'I': '..', 'J': '.---', 'K': '-.-', 'L': '.-..', 'M': '--', 'N': '-.', 'O': '---', 'P': '.--.',
+                      'Q': '--.-', 'R': '.-.', 'S': '...', 'T': '-', 'U': '..-', 'V': '...-', 'W': '.--', 'X': '-..-',
+                      'Y': '-.--', 'Z': '--..', '1': '.----', '2': '..---', '3': '...--', '4': '....-', '5': '.....',
+                      '6': '-....', '7': '--...', '8': '---..', '9': '----.', '0': '-----', ', ': '--..--',
+                      '.': '.-.-.-', '?': '..--..', '/': '-..-.', '-': '-....-', '(': '-.--.', ')': '-.--.-'}
 
 
 def encode_word(word):
@@ -37,14 +45,16 @@ def interval_to_wave_data_segment(interval, frequency, unit_length_seconds):
         return Sine(0).to_audio_segment(length * unit_length_seconds * 1000)
 
 
-def intervals_to_sound(intervals, frequency, unit_length_seconds, file_name):
+def intervals_to_ogg(intervals, frequency, unit_length_seconds, file_name):
     segment = Sine(0).to_audio_segment(morse_config.CROSS_FADE_MS)  # silence at the beginning for cross-fade
     for interval in intervals:
-        segment = segment.append(interval_to_wave_data_segment(interval, frequency, unit_length_seconds), crossfade=morse_config.CROSS_FADE_MS)
-    play(segment)
+        segment = segment.append(interval_to_wave_data_segment(interval, frequency, unit_length_seconds),
+                                 crossfade=morse_config.CROSS_FADE_MS)
+    segment.export(file_name, format="ogg")
 
 
 if __name__ == "__main__":
-    intervals_to_sound(sentence_to_intervals("hello world"),
-                       morse_config.FREQUENCY,
-                       morse_config.UNIT_LENGTH_SECONDS)
+    intervals_to_ogg(sentence_to_intervals("hello world"),
+                     morse_config.FREQUENCY,
+                     morse_config.UNIT_LENGTH_SECONDS,
+                     "test.ogg")

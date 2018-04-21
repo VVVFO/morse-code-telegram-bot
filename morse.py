@@ -1,9 +1,14 @@
 from pydub.generators import Sine
-from pydub import AudioSegment
 import morse_config
 
-# the default (libav) doesn't work somehow, dirty hack time :(
-AudioSegment.converter = "ffmpeg"
+# the default (libav) doesn't work somehow due to the mystic parameter "write_xing"
+# this dirty hack makes the issue go away
+# I have opened an issue for pydub at https://github.com/jiaaro/pydub/issues/269
+import sys
+sys.platform = "something else"
+# or change the converter to ffmpeg like that, but it doesn't support opus well :(
+# from pydub import AudioSegment
+# AudioSegment.converter = "ffmpeg"
 
 # (State, Length in units)
 CODE_TO_INTERVAL_TABLE = {
@@ -26,11 +31,11 @@ def encode_word(word):
         # to add an one-unit-pause between each . and -
         # ignore if the character is not found in the table
         char_codes.append(" ".join(list(CHAR_TO_CODE_TABLE.get(character.upper(), ""))))
-    return "   ".join(char_codes)  # three units between words
+    return "   ".join(char_codes)  # three units between letters
 
 
 def encode_sentence(sentence):
-    return "       ".join(encode_word(word) for word in sentence.split(' '))  # seven units between sentences
+    return "       ".join(encode_word(word) for word in sentence.split(' '))  # seven units between words
 
 
 def sentence_to_intervals(sentence):
@@ -45,16 +50,22 @@ def interval_to_wave_data_segment(interval, frequency, unit_length_seconds):
         return Sine(0).to_audio_segment(length * unit_length_seconds * 1000)
 
 
-def intervals_to_ogg(intervals, frequency, unit_length_seconds, file_name):
-    segment = Sine(0).to_audio_segment(morse_config.CROSS_FADE_MS)  # silence at the beginning for cross-fade
+def text_to_audio(text,
+                  file_name,
+                  format,
+                  codec=None,  # None for default
+                  frequency=morse_config.FREQUENCY,
+                  unit_length_seconds=morse_config.UNIT_LENGTH_SECONDS,
+                  cross_fade=morse_config.CROSS_FADE_MS):
+    intervals = sentence_to_intervals(text)
+    segment = Sine(0).to_audio_segment(cross_fade)  # silence at the beginning for cross-fade
     for interval in intervals:
         segment = segment.append(interval_to_wave_data_segment(interval, frequency, unit_length_seconds),
-                                 crossfade=morse_config.CROSS_FADE_MS)
-    segment.export(file_name, format="ogg")
+                                 crossfade=cross_fade)
+    segment.export(file_name,
+                   format=format,
+                   codec=codec)
 
 
 if __name__ == "__main__":
-    intervals_to_ogg(sentence_to_intervals("hello world"),
-                     morse_config.FREQUENCY,
-                     morse_config.UNIT_LENGTH_SECONDS,
-                     "test.ogg")
+    text_to_audio("hello world", "test.ogg", "ogg")

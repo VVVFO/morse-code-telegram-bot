@@ -1,4 +1,6 @@
 import os
+import random
+import subprocess
 from telegram.ext import Updater, CommandHandler, MessageHandler, BaseFilter
 import telegram
 import datetime
@@ -6,6 +8,7 @@ import time
 import logging
 import bot_config
 import morse
+import user_states
 
 
 class MentionFilter(BaseFilter):
@@ -44,57 +47,126 @@ class AnyTextFilter(MentionFilter):
         return True
 
 
-def send_morse_code_as_audio(bot, update):
-    logging.info("Send morse code request received, id: {}, username: {}".format(update.effective_user.id,
-                                                                                 update.effective_user.username))
+class MorseBot:
+    def __init__(self):
+        # instantiate and initialize database manager
+        self.db = user_states.UserStateManager(bot_config.DATABASE_NAME,
+                                               bot_config.TABLE_NAME)
 
-    # create a filename for this update
-    timestamp_string = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S-%f')
-    file_name = "{}-{}.mp3".format(timestamp_string, update.effective_user.username)
+    def send_morse_code_voice_to(self,
+                                 bot,
+                                 username,
+                                 text,
+                                 chat_id,
+                                 reply_to_message_id=None,
+                                 frequency=None,
+                                 wpm=None):
+        # create a filename for this update
+        timestamp_string = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S-%f')
+        file_name = "{}-{}.ogg".format(timestamp_string, username)
 
-    # remove the mentioning part from the text
-    text = update.message.text.replace("@" + bot_config.bot_id, "")
-    morse.text_to_audio(text, file_name, "mp3")
+        morse.text_to_audio(text,
+                            file_name,
+                            "ogg",
+                            codec="opus",
+                            frequency=frequency,
+                            wpm=wpm)
 
-    with open(file_name, "rb") as audio_file:
-        bot.send_audio(
-            chat_id=update.message.chat_id,
-            audio=audio_file,
-            caption=text,
-            reply_to_message_id=update.message.message_id
-        )
+        with open(file_name, "rb") as audio_file:
+            bot.send_voice(
+                chat_id=chat_id,
+                voice=audio_file,
+                reply_to_message_id=reply_to_message_id
+            )
 
-    # delete the file
-    try:
-        os.remove(file_name)
-    except OSError:
-        pass
+        # delete the file
+        try:
+            os.remove(file_name)
+        except OSError:
+            pass
 
+    def set_frequency(self, bot, update, args):
+        # parsing argument as int
+        try:
+            new_frequency = int(args[0])
+            if new_frequency <= 0 or new_frequency > 2000:
+                raise ValueError()
+        except ValueError:
+            bot.send_message(
+                chat_id=update.message.chat_id,
+                text="Please input an integer between 0 and 2000 after \\setfrequency"
+            )
+            return
+        logging.info("Setting {}'s frequency to {}".format(
+            update.message.from_user.id,
+            new_frequency
+        ))
+        self.db.set_frequency(update.message.from_user.id,
+                              new_frequency)
 
-def send_morse_code_as_voice(bot, update):
-    logging.info("Send morse code request received, id: {}, username: {}".format(update.effective_user.id,
-                                                                                 update.effective_user.username))
+    def set_wpm(self, bot, update, args):
+        # parsing argument as int
+        try:
+            new_wpm = int(args[0])
+            if new_wpm <= 5 or new_wpm > 50:
+                raise ValueError()
+        except ValueError:
+            bot.send_message(
+                chat_id=update.message.chat_id,
+                text="Please input an integer between 5 and 50 after \\setwpm"
+            )
+            return
+        logging.info("Setting {}'s wpm to {}".format(
+            update.message.from_user.id,
+            new_wpm
+        ))
+        self.db.set_wpm(update.message.from_user.id,
+                        new_wpm)
 
-    # create a filename for this update
-    timestamp_string = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S-%f')
-    file_name = "{}-{}.ogg".format(timestamp_string, update.effective_user.username)
+    def reply_morse_code_to_text(self, bot, update):
+        logging.info("Send morse code request received, id: {}, username: {}".format(update.effective_user.id,
+                                                                                     update.effective_user.username))
 
-    # remove the mentioning part from the text
-    text = update.message.text.replace("@" + bot_config.bot_id, "")
-    morse.text_to_audio(text, file_name, "ogg", "opus")
+        text = update.message.text.replace("@" + bot_config.bot_id, "")
+        self.send_morse_code_voice_to(bot,
+                                      update.message.from_user.username,
+                                      text,
+                                      update.message.chat_id,
+                                      reply_to_message_id=update.message.message_id,
+                                      frequency=self.db.get_frequency(update.message.from_user.id),
+                                      wpm=self.db.get_wpm(update.message.from_user.id))
 
-    with open(file_name, "rb") as audio_file:
-        bot.send_voice(
-            chat_id=update.message.chat_id,
-            voice=audio_file,
-            reply_to_message_id=update.message.message_id
-        )
+    def random_fortune(self, bot, update):
+        logging.info("Random fortune request received, id: {}, username: {}".format(update.effective_user.id,
+                                                                                    update.effective_user.username))
+        fortune_text = subprocess.run(["fortune", "-s"], stdout=subprocess.PIPE).stdout.decode("ascii")
+        fortune_text = random.choice(fortune_text.split())
+        self.send_morse_code_voice_to(bot,
+                                      update.effective_user.username,
+                                      fortune_text,
+                                      update.message.chat_id,
+                                      reply_to_message_id=update.message.message_id,
+                                      frequency=self.db.get_frequency(update.message.from_user.id),
+                                      wpm=self.db.get_wpm(update.message.from_user.id))
+        # bot.send_message(fortune_text, update.message.chat_id)
+        # TODO write answer to db
+        print(fortune_text)
 
-    # delete the file
-    try:
-        os.remove(file_name)
-    except OSError:
-        pass
+    def random_word(self, bot, update):
+        logging.info("Random fortune request received, id: {}, username: {}".format(update.effective_user.id,
+                                                                                    update.effective_user.username))
+        fortune_text = subprocess.run(["fortune"], stdout=subprocess.PIPE).stdout.decode("ascii")
+        random_word = random.choice(fortune_text.split(' '))
+        self.send_morse_code_voice_to(bot,
+                                      update.effective_user.username,
+                                      random_word,
+                                      update.message.chat_id,
+                                      reply_to_message_id=update.message.message_id,
+                                      frequency=self.db.get_frequency(update.message.from_user.id),
+                                      wpm=self.db.get_wpm(update.message.from_user.id))
+        # bot.send_message(fortune_text, update.message.chat_id)
+        # TODO write answer to db
+        print(random_word)
 
 
 def start(bot, update):
@@ -107,13 +179,23 @@ def main():
     updater = Updater(token=bot_config.token)
     dispatcher = updater.dispatcher
 
+    morse_bot = MorseBot()
+
     any_text_filter = AnyTextFilter()
 
     start_handler = CommandHandler('start', start)
+    fortune_handler = CommandHandler('fortune', morse_bot.random_fortune)
+    random_word_handler = CommandHandler('random_word', morse_bot.random_word)
+    set_frequency_handler = CommandHandler('setfrequency', morse_bot.set_frequency, pass_args=True)
+    set_wpm = CommandHandler('setwpm', morse_bot.set_wpm, pass_args=True)
 
-    send_morse_code_handler = MessageHandler(any_text_filter, send_morse_code_as_voice)
+    send_morse_code_handler = MessageHandler(any_text_filter, morse_bot.reply_morse_code_to_text)
 
     dispatcher.add_handler(start_handler)
+    dispatcher.add_handler(fortune_handler)
+    dispatcher.add_handler(random_word_handler)
+    dispatcher.add_handler(set_frequency_handler)
+    dispatcher.add_handler(set_wpm)
     dispatcher.add_handler(send_morse_code_handler)
 
     updater.start_polling()

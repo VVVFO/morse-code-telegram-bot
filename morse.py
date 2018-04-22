@@ -1,10 +1,10 @@
 from pydub.generators import Sine
-import morse_config
 
 # the default (libav) doesn't work somehow due to the mystic parameter "write_xing"
 # this dirty hack makes the issue go away
 # I have opened an issue for pydub at https://github.com/jiaaro/pydub/issues/269
 import sys
+
 sys.platform = "something else"
 # or change the converter to ffmpeg like that, but it doesn't support opus well :(
 # from pydub import AudioSegment
@@ -50,13 +50,18 @@ def interval_to_wave_data_segment(interval, frequency, unit_length_seconds):
         return Sine(0).to_audio_segment(length * unit_length_seconds * 1000)
 
 
+def wpm_to_unit_length_seconds(wpm):
+    return 60 / (wpm * 50)
+
+
 def text_to_audio(text,
                   file_name,
                   format,
                   codec=None,  # None for default
-                  frequency=morse_config.FREQUENCY,
-                  unit_length_seconds=morse_config.UNIT_LENGTH_SECONDS,
-                  cross_fade=morse_config.CROSS_FADE_MS):
+                  frequency=700,
+                  wpm=10,
+                  cross_fade=2):
+    unit_length_seconds = wpm_to_unit_length_seconds(wpm)
     intervals = sentence_to_intervals(text)
     segment = Sine(0).to_audio_segment(cross_fade)  # silence at the beginning for cross-fade
     for interval in intervals:

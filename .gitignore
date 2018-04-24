@@ -1,6 +1,5 @@
 # Note:
 # only allow certain file types
-# .txt is NOT included!
 
 *
 !.gitattributes

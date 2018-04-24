@@ -15,9 +15,8 @@ class UserStateManager:
         CREATE TABLE IF NOT EXISTS {} (
             user_id integer PRIMARY KEY,
             wpm integer NOT NULL,
-            frequency integer NOT NULL,
-            last_fortune_text,
-            last_word_text);""".format(table_name)
+            frequency integer NOT NULL
+            );""".format(table_name)
 
         self.cursor.execute(create_table_statement)
         self.conn.commit()

@@ -1,7 +1,8 @@
 import os
 import random
 import subprocess
-from telegram.ext import Updater, CommandHandler, MessageHandler, BaseFilter
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, BaseFilter
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import telegram
 import datetime
 import time
@@ -60,7 +61,8 @@ class MorseBot:
                                  chat_id,
                                  reply_to_message_id=None,
                                  frequency=None,
-                                 wpm=None):
+                                 wpm=None,
+                                 reply_markup=None):
         # create a filename for this update
         timestamp_string = datetime.datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d-%H-%M-%S-%f')
         file_name = "{}-{}.ogg".format(timestamp_string, username)
@@ -76,7 +78,8 @@ class MorseBot:
             bot.send_voice(
                 chat_id=chat_id,
                 voice=audio_file,
-                reply_to_message_id=reply_to_message_id
+                reply_to_message_id=reply_to_message_id,
+                reply_markup=reply_markup
             )
 
         # delete the file
@@ -139,34 +142,50 @@ class MorseBot:
     def random_fortune(self, bot, update):
         logging.info("Random fortune request received, id: {}, username: {}".format(update.effective_user.id,
                                                                                     update.effective_user.username))
-        fortune_text = subprocess.run(["fortune", "-s"], stdout=subprocess.PIPE).stdout.decode("ascii")
-        fortune_text = random.choice(fortune_text.split())
+        fortune_text = subprocess.run(["fortune", "-s", "-n", "{}".format(bot_config.MAXIMUM_FORTUNE_LENGTH)],
+                                      stdout=subprocess.PIPE).stdout.decode("ascii")
+        keyboard = [[InlineKeyboardButton("Show Text",
+                                          callback_data=fortune_text[:bot_config.MAXIMUM_FORTUNE_LENGTH])]]
+        # to not go greater than the 64 byte limit
+        reply_markup = InlineKeyboardMarkup(keyboard)
         self.send_morse_code_voice_to(bot,
                                       update.effective_user.username,
                                       fortune_text,
                                       update.message.chat_id,
                                       reply_to_message_id=update.message.message_id,
                                       frequency=self.db.get_frequency(update.message.from_user.id),
-                                      wpm=self.db.get_wpm(update.message.from_user.id))
-        # bot.send_message(fortune_text, update.message.chat_id)
-        # TODO write answer to db
-        print(fortune_text)
+                                      wpm=self.db.get_wpm(update.message.from_user.id),
+                                      reply_markup=reply_markup)
 
     def random_word(self, bot, update):
         logging.info("Random fortune request received, id: {}, username: {}".format(update.effective_user.id,
                                                                                     update.effective_user.username))
         fortune_text = subprocess.run(["fortune"], stdout=subprocess.PIPE).stdout.decode("ascii")
         random_word = random.choice(fortune_text.split(' '))
+        keyboard = [[InlineKeyboardButton("Show Text",
+                                          callback_data=random_word[:bot_config.MAXIMUM_FORTUNE_LENGTH])]]
+        # to not go over the 64 byte limit
+        reply_markup = InlineKeyboardMarkup(keyboard)
         self.send_morse_code_voice_to(bot,
                                       update.effective_user.username,
                                       random_word,
                                       update.message.chat_id,
                                       reply_to_message_id=update.message.message_id,
                                       frequency=self.db.get_frequency(update.message.from_user.id),
-                                      wpm=self.db.get_wpm(update.message.from_user.id))
-        # bot.send_message(fortune_text, update.message.chat_id)
-        # TODO write answer to db
-        print(random_word)
+                                      wpm=self.db.get_wpm(update.message.from_user.id),
+                                      reply_markup=reply_markup)
+
+
+def show_text_callback(bot, update):
+    """
+    Being the callback of fortune text and word texts
+    The callback query data contains the question and answer text
+    """
+    # bot.send_message(chat_id=update.callback_query.from_user.id,
+    #                  text=update.callback_query.data)
+    bot.answer_callback_query(update.callback_query.id,
+                              text="\"{}\"".format(update.callback_query.data.strip()),
+                              show_alert=True)
 
 
 def start(bot, update):
@@ -197,6 +216,7 @@ def main():
     dispatcher.add_handler(set_frequency_handler)
     dispatcher.add_handler(set_wpm)
     dispatcher.add_handler(send_morse_code_handler)
+    dispatcher.add_handler(CallbackQueryHandler(show_text_callback))
 
     updater.start_polling()
     updater.idle()  # so the bot can gracefully close

@@ -92,12 +92,12 @@ class MorseBot:
         # parsing argument as int
         try:
             new_frequency = int(args[0])
-            if new_frequency <= 0 or new_frequency > 2000:
+            if new_frequency <= 100 or new_frequency > 2000:
                 raise ValueError()
         except ValueError:
             bot.send_message(
                 chat_id=update.message.chat_id,
-                text="Please input an integer between 0 and 2000 after \\setfrequency"
+                text="Please input an integer between 100 and 2000 after \\setfrequency"
             )
             return
         logging.info("Setting {}'s frequency to {}".format(
@@ -106,6 +106,9 @@ class MorseBot:
         ))
         self.db.set_frequency(update.message.from_user.id,
                               new_frequency)
+
+        update.message.reply_text("Frequency for {} set to {}!".format(update.message.from_user.username,
+                                                                       new_frequency))
 
     def set_wpm(self, bot, update, args):
         # parsing argument as int
@@ -126,6 +129,9 @@ class MorseBot:
         self.db.set_wpm(update.message.from_user.id,
                         new_wpm)
 
+        update.message.reply_text("WPM for {} set to {}!".format(update.message.from_user.username,
+                                                                 new_wpm))
+
     def reply_morse_code_to_text(self, bot, update):
         logging.info("Send morse code request received, id: {}, username: {}".format(update.effective_user.id,
                                                                                      update.effective_user.username))
@@ -144,9 +150,9 @@ class MorseBot:
                                                                                     update.effective_user.username))
         fortune_text = subprocess.run(["fortune", "-s", "-n", "{}".format(bot_config.MAXIMUM_FORTUNE_LENGTH)],
                                       stdout=subprocess.PIPE).stdout.decode("ascii")
+        # to not go over than the 64 byte limit
         keyboard = [[InlineKeyboardButton("Show Text",
                                           callback_data=fortune_text[:bot_config.MAXIMUM_FORTUNE_LENGTH])]]
-        # to not go greater than the 64 byte limit
         reply_markup = InlineKeyboardMarkup(keyboard)
         self.send_morse_code_voice_to(bot,
                                       update.effective_user.username,
@@ -158,13 +164,13 @@ class MorseBot:
                                       reply_markup=reply_markup)
 
     def random_word(self, bot, update):
-        logging.info("Random fortune request received, id: {}, username: {}".format(update.effective_user.id,
-                                                                                    update.effective_user.username))
+        logging.info("Random word request received, id: {}, username: {}".format(update.effective_user.id,
+                                                                                 update.effective_user.username))
         fortune_text = subprocess.run(["fortune"], stdout=subprocess.PIPE).stdout.decode("ascii")
         random_word = random.choice(fortune_text.split(' '))
+        # to not go over the 64 byte limit
         keyboard = [[InlineKeyboardButton("Show Text",
                                           callback_data=random_word[:bot_config.MAXIMUM_FORTUNE_LENGTH])]]
-        # to not go over the 64 byte limit
         reply_markup = InlineKeyboardMarkup(keyboard)
         self.send_morse_code_voice_to(bot,
                                       update.effective_user.username,
@@ -181,8 +187,6 @@ def show_text_callback(bot, update):
     Being the callback of fortune text and word texts
     The callback query data contains the question and answer text
     """
-    # bot.send_message(chat_id=update.callback_query.from_user.id,
-    #                  text=update.callback_query.data)
     bot.answer_callback_query(update.callback_query.id,
                               text="\"{}\"".format(update.callback_query.data.strip()),
                               show_alert=True)
@@ -202,20 +206,12 @@ def main():
 
     any_text_filter = AnyTextFilter()
 
-    start_handler = CommandHandler('start', start)
-    fortune_handler = CommandHandler('fortune', morse_bot.random_fortune)
-    random_word_handler = CommandHandler('random_word', morse_bot.random_word)
-    set_frequency_handler = CommandHandler('setfrequency', morse_bot.set_frequency, pass_args=True)
-    set_wpm = CommandHandler('setwpm', morse_bot.set_wpm, pass_args=True)
-
-    send_morse_code_handler = MessageHandler(any_text_filter, morse_bot.reply_morse_code_to_text)
-
-    dispatcher.add_handler(start_handler)
-    dispatcher.add_handler(fortune_handler)
-    dispatcher.add_handler(random_word_handler)
-    dispatcher.add_handler(set_frequency_handler)
-    dispatcher.add_handler(set_wpm)
-    dispatcher.add_handler(send_morse_code_handler)
+    dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CommandHandler('fortune', morse_bot.random_fortune))
+    dispatcher.add_handler(CommandHandler('word', morse_bot.random_word))
+    dispatcher.add_handler(CommandHandler('setfrequency', morse_bot.set_frequency, pass_args=True))
+    dispatcher.add_handler(CommandHandler('setwpm', morse_bot.set_wpm, pass_args=True))
+    dispatcher.add_handler(MessageHandler(any_text_filter, morse_bot.reply_morse_code_to_text))
     dispatcher.add_handler(CallbackQueryHandler(show_text_callback))
 
     updater.start_polling()

@@ -5,7 +5,8 @@ from pydub.generators import Sine
 # I have opened an issue for pydub at https://github.com/jiaaro/pydub/issues/269
 import sys
 
-sys.platform = "something else"
+if sys.platform == "darwin":
+    sys.platform = "something else"
 # or change the converter to ffmpeg like that, but it doesn't support opus well :(
 # from pydub import AudioSegment
 # AudioSegment.converter = "ffmpeg"
@@ -56,8 +57,8 @@ def wpm_to_unit_length_seconds(wpm):
 
 def text_to_audio(text,
                   file_name,
-                  format,
-                  codec=None,  # None for default
+                  export_file_format,  # e.g. "ogg"
+                  codec=None,  # e.g. "opus"
                   frequency=700,
                   wpm=10,
                   cross_fade=2):
@@ -68,9 +69,5 @@ def text_to_audio(text,
         segment = segment.append(interval_to_wave_data_segment(interval, frequency, unit_length_seconds),
                                  crossfade=cross_fade)
     segment.export(file_name,
-                   format=format,
+                   format=export_file_format,
                    codec=codec)
-
-
-if __name__ == "__main__":
-    text_to_audio("hello world", "test.ogg", "ogg")

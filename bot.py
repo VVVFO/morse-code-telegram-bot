@@ -58,6 +58,12 @@ class MorseBot:
         # instantiate and initialize database manager
         self.db = user_states.UserStateManager(bot_config.DATABASE_NAME,
                                                bot_config.TABLE_NAME)
+
+        # set up frequent word list
+        with open(bot_config.WORD_LIST_FILE_NAME, "r") as f:
+            word_list = [line.strip() for line in f.readlines()]
+
+        self.word_list = word_list
         self.bot_id = bot_id
         self.bot_token = bot_token
 
@@ -173,8 +179,7 @@ class MorseBot:
     def random_word(self, bot, update):
         logging.info("Random word request received, id: {}, username: {}".format(update.effective_user.id,
                                                                                  update.effective_user.username))
-        fortune_text = subprocess.run(["fortune"], stdout=subprocess.PIPE).stdout.decode("ascii")
-        random_word = random.choice(fortune_text.split(' '))
+        random_word = random.choice(self.word_list)
         # to not go over the 64 byte limit
         keyboard = [[InlineKeyboardButton("Show Text",
                                           callback_data=random_word[:bot_config.MAXIMUM_FORTUNE_LENGTH])]]

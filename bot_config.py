@@ -1,6 +1,3 @@
-bot_id = "put your bot ID here"
-token = "put your bot token here"
-
 DEFAULT_FRAME_RATE = 44100
 DEFAULT_FREQUENCY = 700
 DATABASE_NAME = "user_config.sqlite"

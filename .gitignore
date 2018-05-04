@@ -10,6 +10,6 @@
 !*.txt
 !*.md
 
-!*/
+!google-10000-english
 
-bot_config.py
+!*/

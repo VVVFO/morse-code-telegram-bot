@@ -12,17 +12,12 @@ Then install the dependencies of `pydub` by following its official instructions 
 
 ## Running
 
-Create a configuration file with:
-
-```bash
-mv bot_config.example.py bot_config.py
-```
-
-Edit `bot_config.py` then fill in `bot_id` and `token`.
-
 Then simply run:
 
 ```bash
-python3 bot.py
+python3 bot.py <bot_id> <bot_token>
 ```
+
+- replace `<bot_id>` with the Bot ID without `@`
+- replace `<bot_token>` with the token
 

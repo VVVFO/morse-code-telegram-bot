@@ -10,6 +10,7 @@ import logging
 import bot_config
 import morse
 import user_states
+import argparse
 
 
 class MentionFilter(BaseFilter):
@@ -17,6 +18,10 @@ class MentionFilter(BaseFilter):
     Filter class that works in both private chat and group chat
     Applying method match() for both private messages and mention messages
     """
+
+    def __init__(self, bot_id):
+        # super(self.__class__, self).__init__(**kwargs)
+        self.bot_id = bot_id
 
     def match(self, message):
         # doing a certain pattern matching
@@ -35,7 +40,7 @@ class MentionFilter(BaseFilter):
                 return self.match(message)
             # if this is a group chat
             elif message.chat.type == telegram.Chat.GROUP:
-                mentioned = bot_config.bot_id in message.text
+                mentioned = self.bot_id in message.text
                 return mentioned and self.match(message)
 
 
@@ -49,10 +54,12 @@ class AnyTextFilter(MentionFilter):
 
 
 class MorseBot:
-    def __init__(self):
+    def __init__(self, bot_id, bot_token):
         # instantiate and initialize database manager
         self.db = user_states.UserStateManager(bot_config.DATABASE_NAME,
                                                bot_config.TABLE_NAME)
+        self.bot_id = bot_id
+        self.bot_token = bot_token
 
     def send_morse_code_voice_to(self,
                                  bot,
@@ -136,7 +143,7 @@ class MorseBot:
         logging.info("Send morse code request received, id: {}, username: {}".format(update.effective_user.id,
                                                                                      update.effective_user.username))
 
-        text = update.message.text.replace("@" + bot_config.bot_id, "")
+        text = update.message.text.replace("@" + self.bot_id, "")
         self.send_morse_code_voice_to(bot,
                                       update.message.from_user.username,
                                       text,
@@ -196,15 +203,24 @@ def start(bot, update):
     update.message.reply_text("Hi! Text me anything!")
 
 
-def main():
+def parse_command_line_arguments():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("bot_id", help="Bot ID without '@'")
+    parser.add_argument("token", help="Bot token")
+    args = parser.parse_args()
+
+    return args.bot_id, args.token
+
+
+def run_bot(bot_id, bot_token):
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-    updater = Updater(token=bot_config.token)
+    updater = Updater(token=bot_token)
     dispatcher = updater.dispatcher
 
-    morse_bot = MorseBot()
+    morse_bot = MorseBot(bot_id, bot_token)
 
-    any_text_filter = AnyTextFilter()
+    any_text_filter = AnyTextFilter(bot_id)
 
     dispatcher.add_handler(CommandHandler('start', start))
     dispatcher.add_handler(CommandHandler('fortune', morse_bot.random_fortune))
@@ -219,4 +235,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    bot_id, bot_token = parse_command_line_arguments()
+    run_bot(bot_id, bot_token)

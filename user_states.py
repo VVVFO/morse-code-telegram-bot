@@ -4,13 +4,11 @@ import bot_config
 
 class UserStateManager:
     def __init__(self, database_name, table_name):
-        # create connection
         self.database_name = database_name
         self.table_name = table_name
         self.conn = sqlite3.connect(database_name, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
-        # if table does not exist, then create table
         create_table_statement = """
         CREATE TABLE IF NOT EXISTS {} (
             user_id integer PRIMARY KEY,

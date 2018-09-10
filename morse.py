@@ -29,14 +29,14 @@ CHAR_TO_CODE_TABLE = {'A': '.-', 'B': '-...', 'C': '-.-.', 'D': '-..', 'E': '.',
 def encode_word(word):
     char_codes = []
     for character in word:
-        # to add an one-unit-pause between each . and -
-        # ignore if the character is not found in the table
+        # Add an one-unit-pause between each . and -
+        # Ignore if the character is not found in the table.
         char_codes.append(" ".join(list(CHAR_TO_CODE_TABLE.get(character.upper(), ""))))
     return "   ".join(char_codes)  # three units between letters
 
 
 def encode_sentence(sentence):
-    return "       ".join(encode_word(word) for word in sentence.split(' '))  # seven units between words
+    return (" " * 7).join(encode_word(word) for word in sentence.split(' '))  # seven units between words
 
 
 def sentence_to_intervals(sentence):
@@ -52,6 +52,7 @@ def interval_to_wave_data_segment(interval, frequency, unit_length_seconds):
 
 
 def wpm_to_unit_length_seconds(wpm):
+    # Using "PARIS" as the standard word.
     return 60 / (wpm * 50)
 
 

@@ -55,7 +55,6 @@ class AnyTextFilter(MentionFilter):
 
 class MorseBot:
     def __init__(self, bot_id, bot_token):
-        # instantiate and initialize database manager
         self.db = user_states.UserStateManager(bot_config.DATABASE_NAME,
                                                bot_config.TABLE_NAME)
 
@@ -95,7 +94,6 @@ class MorseBot:
                 reply_markup=reply_markup
             )
 
-        # delete the file
         try:
             os.remove(file_name)
         except OSError:
@@ -110,7 +108,7 @@ class MorseBot:
         except ValueError:
             bot.send_message(
                 chat_id=update.message.chat_id,
-                text="Please input an integer between 100 and 2000 after \\setfrequency"
+                text="Please input an integer between 100 and 2000 after /setfrequency"
             )
             return
         logging.info("Setting {}'s frequency to {}".format(
@@ -132,7 +130,7 @@ class MorseBot:
         except ValueError:
             bot.send_message(
                 chat_id=update.message.chat_id,
-                text="Please input an integer between 5 and 50 after \\setwpm"
+                text="Please input an integer between 5 and 50 after /setwpm"
             )
             return
         logging.info("Setting {}'s wpm to {}".format(
@@ -205,7 +203,20 @@ def show_text_callback(bot, update):
 
 
 def start(bot, update):
-    update.message.reply_text("Hi! Text me anything!")
+    update.message.reply_text("Hi! Text me anything or use /help to see more commands!")
+
+
+def help_handler(bot, update):
+    help_text = """Commands:
+    
+/word Transmit a random word, press "Show Text" for showing the word.
+/fortune Transmit a random fortune, press "Show Text" for showing the text.
+/setfrequency Change the frequency of transmissions (e.g. /setfrequency 700).
+/setwpm Change the WPM of transmissions (e.g. /setwpm 10).
+    
+Or just text me anything to convert it to morse code (which can be forwarded to other chats).
+    """
+    update.message.reply_text(help_text)
 
 
 def parse_command_line_arguments():
@@ -228,6 +239,7 @@ def run_bot(bot_id, bot_token):
     any_text_filter = AnyTextFilter(bot_id)
 
     dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CommandHandler('help', help_handler))
     dispatcher.add_handler(CommandHandler('fortune', morse_bot.random_fortune))
     dispatcher.add_handler(CommandHandler('word', morse_bot.random_word))
     dispatcher.add_handler(CommandHandler('setfrequency', morse_bot.set_frequency, pass_args=True))

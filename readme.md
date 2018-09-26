@@ -1,5 +1,10 @@
 # Morse Code Telegram Bot
 
+A Telegram bot that lets you:
+
+1. send Telegram messages in morse code (with customizable WPM, frequency etc.)
+2. train receiving morse code (by receiving random words or fortune texts)
+
 ## Dependencies
 
 First install the Python packages required with (use `--user` or `sudo` as appropriate):
